@@ -54,6 +54,13 @@ svg {
   background-size: cover;
 }
 
+#noMoreCash {
+  background-image: url("img/nocash.png");
+  background-position: center; /* Center the image */
+  background-repeat: no-repeat; /* Do not repeat the image */
+  background-size: cover;
+}
+
 .options-button {
   position: fixed;
   top: 10px;

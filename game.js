@@ -15,6 +15,7 @@ const SOUND_GAMEOVER = "snd/levelcomplete.wav";
 const SOUND_BUTTONCLICK = "snd/click.mp3"; // click sound for button press
 const SOUND_LEVELCOMPLETE = "snd/levelcomplete.wav";
 const SOUND_FOLD = "snd/nope.mp3";
+const SOUND_NOMORECASH = "snd/drums.wav";
 
 const IMAGE_BOARD = "img/board.png"; // background image for board
 const IMAGE_CARDS = "img/cards.png"; // card sheet image (consists of sheet of images 14 cards across by 4 down)
@@ -1066,6 +1067,13 @@ function isMoreThanOnePlayerLeft() {
   return count > 1;
 }
 
+function gotNoMoneyLeft() {
+  pauseGameLoop = true;
+  enableAnimationFrame = false;
+  document.getElementById("noMoreCash").classList.remove("d-none");
+  new Audio(SOUND_NOMORECASH).play();
+}
+
 //
 //
 // start the game with x number of players
@@ -1087,18 +1095,23 @@ function startGame(numberOfPlayers) {
 function startNewRound() {
   enableAnimationFrame = false;
   pauseGameLoop = true;
-  pot = new Pot();
-  communityHand = new Player("Community");
-  currentStage = gameStage.NewHand;
-  players.forEach((player) => {
-    player.hand = [];
-    player.inPlay = true;
-  });
-  setNextDealer();
-  resetPlayerBets(true);
-  enableAnimationFrame = true;
-  pauseGameLoop = false;
-  gameLoop();
+  let player1 = players.find((a) => a.playerName === "Player1");
+  if (player1 && player1.money < minimumBet) {
+    gotNoMoneyLeft();
+  } else {
+    pot = new Pot();
+    communityHand = new Player("Community");
+    currentStage = gameStage.NewHand;
+    players.forEach((player) => {
+      player.hand = [];
+      player.inPlay = true;
+    });
+    setNextDealer();
+    resetPlayerBets(true);
+    enableAnimationFrame = true;
+    pauseGameLoop = false;
+    gameLoop();
+  }
 }
 
 //
