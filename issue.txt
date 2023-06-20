@@ -1,0 +1,47 @@
+initially tried scaling canvas by screen size, which needed all elements scaled too. Until found way to draw at full size on canvas and automatically scale via css
+
+animation delay on dealing cards initially didnt work as settimeout would delay the card, but it would immediately try to deal the next card. So there was a delay but then all cards were dealt at once. Implemented delay routine using a settimeout wrapped by a promise which could then be awaited
+
+gameobject code getting timeout to work. Implemented dispose flag to get rid of gameobjects that are no longer required
+
+Trying to get the rotated cards to the correct position. Had to use this routine:
+   if (rotated) {
+      const angle = (90 * Math.PI) / 180;
+      ctx.translate(positionX, positionY);
+      ctx.rotate(angle);
+      ctx.translate(-positionX , -positionY - cardHeight);  
+    }
+I'm not really sure why I had to set the last translate
+
+Options button - needs extra code to scale. Settled for just positioning it fixed at 25px
+
+music playback - trying audio element in html, and also just in javascript. event wasn't firing correctly as was declaring a new instance in the play method
+
+issues with card value when ace, need to check for high value and for low value
+
+timing for the pot dollar value increase/decrease was initially too fast as function was being called very quickly. Had to adjust the update() method to use a start money value and work out the elapsed time
+
+for the user betting, it was difficult to get user input without blocking all other events (so that the animations could still occur). Chat gtp and bard were used to get solutions for this
+
+working out the betting process was difficult due to not being familiar with poker and trying to determine how the rules worked. 
+
+Had an issue where the "Check" button would not appear on the user input modal dialog. the logic suggested it was added, but it would not appear. In the end I had mistakenly added the button to the array like buttonArray.push[buttonCheck], rather than buttonArray.push(buttonCheck) - note the parentheses
+
+I wanted to have an animation going around the board lines while playing. Animating it via canvas draw calls seemed too hard to get the line correct. In the end I created an svg from part of the background image, then inserted this as a layer in the html document. I could then animate using the svg calls like getpointatlength which gets a point (x,y) at a particular length on an SVG path
+
+During testing I discovered the code to identify a straight was not working if an Ace was to be considered low value, eg 1,2,3,4,5 as a straight. had to modify the sort routine to include a flag for if the ace was considered high or low, then modify the straight routine to re-sort the hand if aces were low
+
+Royalty Free Music: Bensound.com/royalty-free-music
+License code: DYC72OIBADXFJSRT
+Music: bensound.com
+License code: RCPK5BZ8DXAXUNVW
+Music: https://www.bensound.com/free-music-for-videos
+License code: DDDHXQ9WKPGGCXXO
+Royalty Free Music: https://www.bensound.com
+License code: UAHZJIKYZLDIONJ0
+Music by: bensound.com
+License code: 5D1J78ZEK3W0ARHZ
+Music by: Bensound.com/royalty-free-music
+License code: 4ZVF3PXUQBGJ2UOT
+Music I Use: Bensound.com/royalty-free-music
+License code: 0PO19ZIWF61WABXE

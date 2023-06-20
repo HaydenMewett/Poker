@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Poker</title>
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body class="bg-black">
+    <!--  -->
+    <!-- Options slide out panel -->
+    <!--  -->
+    <div
+      class="options-button"
+      data-bs-toggle="offcanvas"
+      href="#offcanvasOptions"
+    >
+      <input
+        type="image"
+        src="img/gear.png"
+        alt="Options"
+        width="100%"
+        height="100%"
+      />
+    </div>
+    <div
+      class="offcanvas offcanvas-start offcanvas-order"
+      data-bs-theme="dark"
+      tabindex="-1"
+      id="offcanvasOptions"
+      aria-labelledby="offcanvasOptionsLabel"
+    >
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasExampleLabel">Options</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="offcanvas"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="offcanvas-body">
+        <div class="card">
+          <div class="card-header">Game</div>
+          <div class="card-body">
+            <button
+              id="newGameButton"
+              class="btn btn-primary"
+              data-bs-dismiss="offcanvas"
+            >
+              New Game
+            </button>
+          </div>
+        </div>
+        <p></p>
+        <div class="card">
+          <div class="card-header">
+            <div class="form-check form-switch">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                role="switch"
+                id="musicEnabled"
+              />
+              <label class="form-check-label" for="musicEnabled"
+                >Music Enabled</label
+              >
+            </div>
+          </div>
+          <p></p>
+          <div class="card-body">
+            <audio id="audio" controls autoplay></audio>
+          </div>
+        </div>
+        <p></p>
+        <div class="card">
+          <div class="card-header">Settings</div>
+          <div class="card-body">
+            <div class="container">
+              <div class="row">
+                <div class="col">
+                  <label class="col-form-label">Starting Money:</label>
+                </div>
+                <div class="col">
+                  <input
+                    class="form-control"
+                    id="inputStartingMoney"
+                    type="number"
+                    min="100"
+                    max="10000"
+                    value="100"
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <label class="col-form-label">Minimum Bet:</label>
+                </div>
+                <div class="col">
+                  <input
+                    class="form-control"
+                    id="inputMinimumBet"
+                    type="number"
+                    min="2"
+                    max="1000"
+                    value="2"
+                  />
+                </div>
+              </div>
+              <div class="col">
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    id="alwaysShowCards"
+                  />
+                  <label class="form-check-label" for="alwaysShowCards"
+                    >Show player cards</label
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p></p>
+        <div class="card">
+          <div class="card-header">Attributions</div>
+          <div class="card-body">
+            <p>
+              Royalty Free Music:
+              <a href="https://Bensound.com/royalty-free-music" target="_blank"
+                >Bensound.com</a
+              >
+            </p>
+            <ul>
+              <li>License code: DYC72OIBADXFJSRT</li>
+              <li>License code: RCPK5BZ8DXAXUNVW</li>
+              <li>License code: DDDHXQ9WKPGGCXXO</li>
+              <li>License code: UAHZJIKYZLDIONJ0</li>
+              <li>License code: 5D1J78ZEK3W0ARHZ</li>
+              <li>License code: 4ZVF3PXUQBGJ2UOT</li>
+              <li>License code: 0PO19ZIWF61WABXE</li>
+              <li>License code: 49IKF9WHXEHRRDEI</li>
+              <li>License code: ZWF4QCOUKZSVVRCF</li>
+            </ul>
+            <p>
+              Sound effects from
+              <a href="https://pixabay.com/sound-effects/" target="_blank"
+                >Pixabay</a
+              >
+            </p>
+            <p>
+              Using
+              <a href="https://getbootstrap.com" target="_blank">Bootstrap</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--  -->
+    <!-- Log Slide-out Panel -->
+    <!--  -->
+    <div class="log-button" data-bs-toggle="offcanvas" href="#offcanvasLog">
+      <input
+        type="image"
+        src="img/log.png"
+        alt="Options"
+        width="100%"
+        height="100%"
+      />
+    </div>
+    <div
+      class="offcanvas offcanvas-end offcanvas-order"
+      data-bs-theme="dark"
+      tabindex="-1"
+      id="offcanvasLog"
+      aria-labelledby="offcanvasLogLabel"
+    >
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasExampleLabel">Play Log</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="offcanvas"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="offcanvas-body">
+        <div class="form-group">
+          <div class="textarea-container">
+            <textarea
+              class="form-control rounded-0"
+              id="logTextArea"
+              rows="10"
+              readonly
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--  -->
+    <!-- Introduction and game start overlay -->
+    <!--  -->
+    <div
+      id="introduction"
+      class="overlay d-flex align-items-center justify-content-center"
+    >
+      <div class="text-center border p-3 overlaydark">
+        <h1>Texas Hold'em</h1>
+        <hr />
+        <div class="form-group p-3">
+          <label for="playerCount"
+            >How many Robots are you playing against? (1-3):</label
+          >
+          <input
+            type="number"
+            id="playerCount"
+            class="form-control"
+            min="1"
+            max="3"
+            value="2"
+          />
+        </div>
+        <hr />
+        <button id="startButton" class="btn btn-primary">Let's Play!</button>
+      </div>
+    </div>
+
+    <!--  -->
+    <!-- Round Winner Overlay -->
+    <!--  -->
+    <div
+      id="roundWinner"
+      class="overlay d-flex align-items-center justify-content-center d-none"
+    >
+      <div class="text-center p-3">
+        <h1>Round Winner!</h1>
+        <h2><span id="roundWinnerLabel">winner details</span></h2>
+        <img
+          src="img/potofgold.png"
+          alt="Pot of gold"
+          style="width: 200px; height: auto"
+        />
+        <button id="roundOkButton" class="btn btn-primary">Continue</button>
+      </div>
+    </div>
+
+    <!--  -->
+    <!-- Game Winner overlay -->
+    <!--  -->
+    <div
+      id="gameWinner"
+      class="overlay d-flex align-items-center justify-content-center d-none"
+    >
+      <div class="text-center overlaydark border p-3">
+        <h1>Game Winner!</h1>
+        <h2><label id="gameWinnerLabel">[Player]</label></h2>
+        <hr />
+        <button id="gameOkButton" class="btn btn-primary">New Game</button>
+      </div>
+    </div>
+
+    <!--  -->
+    <!-- SVG overlay -->
+    <!-- Used for the annoying rotating ball -->
+    <svg
+      id="svgTest"
+      data-name="Layer 1"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 2560 1440"
+    >
+      <rect
+        class="cls-svg"
+        x="93.58"
+        y="79.97"
+        width="2375.61"
+        height="1282.93"
+        rx="215.63"
+        ry="215.63"
+        fill="none"
+      ></rect>
+      <rect class="cls-2" x="1" y="1" width="2560" height="1440" fill="none" />
+      <circle id="svg-circle1" cx="0" cy="0" r="10" fill="yellow" />
+    </svg>
+
+    <!--  -->
+    <!-- Main Game Container -->
+    <!--  -->
+    <div id="gameContainer">
+      <canvas id="gameCanvas" class="gameCanvas"></canvas>
+    </div>
+
+    <dialog data-modal id="modalPlayerInput">
+      <div>
+        <button id="fold" class="btn btn-success">Fold</button>
+        <button id="check" class="btn btn-success">Check</button>
+        <button id="call" class="btn btn-success">Call</button>
+        <button id="raise" class="btn btn-success">Raise</button>
+        <input type="text" id="sliderValue" readonly />
+      </div>
+      <div class="d-flex flex-row">
+        <input
+          type="range"
+          class="form-range"
+          id="betSlider"
+          min="1"
+          step="1"
+        />
+      </div>
+    </dialog>
+
+    <!-- Game Script -->
+    <script src="game.js"></script>
+
+    <!-- Bootstrap stuff -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>

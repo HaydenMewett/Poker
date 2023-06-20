@@ -1,0 +1,10 @@
+Localstorage: https://stackoverflow.com/questions/19211768/saving-a-javascript-variable-for-later-usage/19211862#19211862
+Bootstrap Docs: https://getbootstrap.com/docs/5.3/getting-started/introduction/
+Texas Holdem Strategy: https://howtoplaypokerinfo.com/poker-101/texas-holdem-strategy/
+Algorithm for betting inspiration: https://codereview.stackexchange.com/questions/71630/simple-poker-game
+Free online poker game: https://www.247freepoker.com/
+Poker betting reference: https://www.pokerjunkie.com/how-the-betting-works-in-poker
+Basic Texas Holdem Poker rules: https://howtoplaypokerinfo.com/poker-101/texas-holdem-rules
+Code clarification assistance ChatGPT: https://chat.openai.com/
+Animate along SVG path: https://tympanus.net/codrops/2022/01/19/animate-anything-along-an-svg-path/
+SVG animations: https://css-tricks.com/guide-svg-animations-smil/

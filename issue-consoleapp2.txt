@@ -1,0 +1,465 @@
+I wrote this app to work out how the AI would work with betting for hands
+
+// the card suites
+const cardSuites = {
+  Hearts: 0,
+  Spades: 1,
+  Diamonds: 2,
+  Clubs: 3,
+};
+
+// the card values
+const cardValues = {
+  Ace: 14,
+  Two: 2,
+  Three: 3,
+  Four: 4,
+  Five: 5,
+  Six: 6,
+  Seven: 7,
+  Eight: 8,
+  Nine: 9,
+  Ten: 10,
+  Jack: 11,
+  Queen: 12,
+  King: 13,
+};
+
+// Base score for different types of hands
+const handValues = {
+  royalFlush: 10,
+  straightFlush: 9,
+  fourOfAKind: 8,
+  fullHouse: 7,
+  flush: 6,
+  straight: 5,
+  threeOfAKind: 4,
+  twoPair: 3,
+  onePair: 2,
+  highCard: 1,
+};
+
+function sortHand(hand) {
+  hand.sort((a, b) => {
+    return cardValues[a.value] - cardValues[b.value];
+  });
+}
+
+function getCombinations(hand, handSize, current = [], result = []) {
+  if (current.length === handSize) {
+    result.push(current);
+    return;
+  }
+  for (let i = 0; i < hand.length; i++) {
+    getCombinations(
+      hand.slice(i + 1),
+      handSize,
+      current.concat(hand[i]),
+      result
+    );
+  }
+  return result;
+}
+
+function findKeyByValue(obj, value) {
+  for (const key in obj) {
+    if (obj[key] == value) {
+      return key;
+    }
+  }
+  return null; // Value not found
+}
+
+function getRoyalFlushScore(hand) {
+  if (hand[0].getCardValue() === 10 && getStraightFlushScore(hand)) {
+    return {
+      score: handValues.royalFlush,
+      description: "Royal Flush with " + hand[0].suite,
+    };
+  }
+}
+
+function getStraightFlushScore(hand) {
+  if (getFlushScore(hand) && getStraightScore(hand))
+    return {
+      score: (
+        handValues.straightFlush +
+        hand[hand.length - 1].getCardValue() / 100
+      ).toFixed(2),
+      description:
+        "Straight Flush, with " +
+        hand[0].suite +
+        " from " +
+        hand[0].value +
+        " to " +
+        hand[hand.length - 1].value,
+    };
+}
+
+function getFlushScore(hand) {
+  const checkSuite = hand[0].suite;
+  const res = hand.every((value) => value.suite === checkSuite);
+  return res
+    ? {
+        score: (
+          handValues.flush +
+          hand[hand.length - 1].getCardValue() / 100
+        ).toFixed(2),
+        description: "Flush with " + checkSuite,
+      }
+    : false;
+}
+
+function getFullHouseScore(hand) {
+  let res = false;
+  let pairKey = false;
+  let threeKey = false;
+  const grpValues = getGroupedValues(hand);
+  for (key in grpValues) {
+    if (grpValues[key] === 2) {
+      pairKey = key;
+    }
+    if (grpValues[key] === 3) {
+      threeKey = key;
+    }
+  }
+  if (threeKey && pairKey) {
+    res = {
+      score: (handValues.fullHouse + threeKey / 100 + pairKey / 10000).toFixed(
+        4
+      ),
+      description:
+        "Full house with " +
+        findKeyByValue(cardValues, threeKey) +
+        "s" +
+        " and " +
+        findKeyByValue(cardValues, pairKey) +
+        "s",
+    };
+  }
+  return res;
+}
+
+function getStraightScore(hand) {
+  let acesHigh;
+  if (
+    /////////////////////////////////// check this
+    hand.length > 1 &&
+    hand[hand.length - 1].value === "Ace" &&
+    hand[hand.length - 2].value === "King"
+  ) {
+    //ace high
+    acesHigh = true;
+  } else {
+    acesHigh = false;
+  }
+  let index = 0;
+  do {
+    const currentCard = hand[index].getCardValue(acesHigh);
+    const nextCard = hand[index + 1].getCardValue(acesHigh);
+    if (nextCard !== currentCard + 1) {
+      return false;
+    }
+    index++;
+  } while (index < hand.length - 1);
+  return {
+    score: (
+      handValues.straight +
+      hand[hand.length - 1].getCardValue() / 100
+    ).toFixed(2),
+    description:
+      "Straight, " + hand[0].value + " to " + hand[hand.length - 1].value,
+  };
+}
+
+function getFourOfAKindScore(hand) {
+  let res = false;
+  const grpValues = getGroupedValues(hand);
+  for (key in grpValues) {
+    if (grpValues[key] > 3) {
+      res = {
+        score: (handValues.fourOfAKind + key / 100).toFixed(2),
+        description:
+          "Four of a Kind with " + findKeyByValue(cardValues, key) + "s",
+      };
+    }
+  }
+  return res;
+}
+
+function getThreeOfAKindScore(hand) {
+  let res = false;
+  const grpValues = getGroupedValues(hand);
+  for (key in grpValues) {
+    if (grpValues[key] > 2) {
+      res = {
+        score: (handValues.threeOfAKind + key / 100).toFixed(2),
+        description:
+          "Three of a Kind with " + findKeyByValue(cardValues, key) + "s",
+      };
+    }
+  }
+  return res;
+}
+
+function getTwoPairScore(hand) {
+  let res = false;
+  let pairArray = [];
+  const grpValues = getGroupedValues(hand);
+  for (key in grpValues) {
+    if (grpValues[key] > 1) {
+      pairArray.push({
+        key: key,
+        value: grpValues[key],
+      });
+    }
+  }
+  if (pairArray.length > 1) {
+    res = {
+      score: (
+        handValues.twoPair +
+        pairArray[pairArray.length - 1].key / 100 +
+        pairArray[0].key / 10000
+      ).toFixed(4),
+      description:
+        "A pair of " +
+        findKeyByValue(cardValues, pairArray[pairArray.length - 1].key) +
+        "s, and a pair of " +
+        findKeyByValue(cardValues, pairArray[pairArray.length - 2].key) +
+        "s",
+    };
+  }
+  return res;
+}
+
+function getOnePairScore(hand) {
+  let res = false;
+  const grpValues = getGroupedValues(hand);
+  for (key in grpValues) {
+    if (grpValues[key] > 1) {
+      res = {
+        score: (handValues.onePair + key / 100).toFixed(2),
+        description: "A pair of " + findKeyByValue(cardValues, key) + "s",
+      };
+    }
+  }
+  return res;
+}
+
+function getHighCardScore(hand) {
+  let card = hand[hand.length - 1];
+  return {
+    score: (handValues.highCard + card.getCardValue() / 100).toFixed(2),
+    description: card.toString() + " high",
+  };
+}
+
+function getGroupedValues(hand) {
+  valueObject = {};
+  for (const card of hand) {
+    if (valueObject[cardValues[card.value]]) {
+      valueObject[cardValues[card.value]]++;
+    } else {
+      valueObject[cardValues[card.value]] = 1;
+    }
+  }
+  return valueObject;
+}
+
+function getHandValue(hand) {
+  sortHand(hand);
+  let x;
+  if ((x = getRoyalFlushScore(hand))) {
+    return x;
+  }
+  if ((x = getStraightFlushScore(hand))) {
+    return x;
+  }
+  if ((x = getFourOfAKindScore(hand))) {
+    return x;
+  }
+  if ((x = getFullHouseScore(hand))) {
+    return x;
+  }
+  if ((x = getFlushScore(hand))) {
+    return x;
+  }
+  if ((x = getStraightScore(hand))) {
+    return x;
+  }
+  if ((x = getThreeOfAKindScore(hand))) {
+    return x;
+  }
+  if ((x = getTwoPairScore(hand))) {
+    return x;
+  }
+  if ((x = getOnePairScore(hand))) {
+    return x;
+  }
+  x = getHighCardScore(hand);
+  return x;
+}
+
+class Card {
+  constructor(suite, value) {
+    this.suite = suite;
+    this.value = value;
+  }
+
+  toString() {
+    return this.value + " of " + this.suite;
+  }
+
+  // return the card value as an int, determines if aces should be high value or low
+  getCardValue(acesHigh = true) {
+    let cvalue = cardValues[this.value];
+    if (!acesHigh && this.value === "Ace") {
+      cvalue = 1;
+    }
+    return cvalue;
+  }
+}
+
+class Deck {
+  constructor() {
+    this.deck = [];
+  }
+
+  newDeck() {
+    for (const suite in cardSuites) {
+      for (const value in cardValues) {
+        this.deck.push(new Card(suite, value));
+      }
+    }
+  }
+
+  shuffle() {
+    for (let i = 0; i < this.deck.length; i++) {
+      let j = Math.floor(Math.random() * this.deck.length); // get a random number
+      let temp = this.deck[i]; // get the value of the current card in the loop
+      this.deck[i] = this.deck[j]; // swap it with the random card we chose
+      this.deck[j] = temp;
+    }
+  }
+
+  deal() {
+    if (this.deck.length == 0) {
+      this.newDeck();
+      this.shuffle();
+    }
+    return this.deck.pop();
+  }
+
+  removeCard(card) {
+    let index = this.deck.findIndex(
+      (c) => c.suite === card.suite && c.value === card.value
+    );
+    if (index !== -1) {
+      this.deck.splice(index, 1);
+    }
+  }
+}
+
+function getRemainingCards(hand) {
+  let deck = new Deck();
+  deck.newDeck();
+  hand.forEach((card) => {
+    deck.removeCard(card);
+  });
+  return deck.deck;
+}
+
+function getBestHandScore(hand) {
+  let combinations = getCombinations(hand, Math.min(hand.length, 5));
+  let max = false;
+  combinations.forEach((hand) => {
+    let handValue = getHandValue(hand);
+    if (!max || handValue.score > max.score) {
+      max = handValue;
+    }
+  });
+  return max;
+}
+
+function getUnknownCardCombinations(remainingCards, lengthOfCombination) {
+  const combinations = [];
+
+  function backtrack(startIndex, currentCombination) {
+    if (currentCombination.length === lengthOfCombination) {
+      combinations.push([...currentCombination]);
+      return;
+    }
+    for (let i = startIndex; i < remainingCards.length; i++) {
+      currentCombination.push(remainingCards[i]);
+      backtrack(i + 1, currentCombination);
+      currentCombination.pop();
+    }
+  }
+
+  backtrack(0, []);
+  return combinations;
+}
+
+function getHandCombinations(hand, maxCardsToChooseFrom = 7) {
+  let combinations = [];
+  let remainingCards = getRemainingCards(hand);
+  let unknownCardCombinations = getUnknownCardCombinations(
+    remainingCards,
+    maxCardsToChooseFrom - hand.length
+  );
+  unknownCardCombinations.forEach((c) => {
+    let newHand = hand.concat(c);
+    let newHandCombinations = getCombinations(newHand, 5);
+    newHandCombinations.forEach((n) => {
+      combinations.push(n);
+    });
+  });
+  return combinations;
+}
+
+function getBestPossibleHand(hand, maxCardsToChooseFrom = 7) {
+  let combinations = getHandCombinations(hand, maxCardsToChooseFrom);
+  let max = false;
+  combinations.forEach((combination) => {
+    let handValue = getHandValue(combination);
+    if (!max || handValue.score > max.score) {
+      max = handValue;
+    }
+  });
+  return max;
+}
+
+function getWinningPercentageForCurrentHand(hand, community) {
+  let ownHandScore = getBestHandScore(hand);
+  let otherCombinations = getHandCombinations(community);
+  let wins = 0;
+  otherCombinations.forEach((combination) => {
+    let score = getBestHandScore(combination);
+    if (ownHandScore.score >= score.score) {
+      wins++;
+    }
+  });
+  var odds = ((wins / otherCombinations.length) * 100).toFixed(2);
+  return odds;
+}
+
+let p1 = new Card("Diamonds", "Ten");
+let p2 = new Card("Clubs", "Ace");
+let c1 = new Card("Spades", "Three");
+let c2 = new Card("Clubs", "Jack");
+let c3 = new Card("Hearts", "Three");
+let c4 = new Card("Spades", "Jack");
+let c5 = new Card("Hearts", "Three");
+let playerHand = [p1, p2];
+let communityHand = [c1, c2, c3, c4, c5];
+
+let possibleHands = getHandCombinations(communityHand);
+let hand = playerHand.concat(communityHand);
+let maxCurrent = getBestHandScore(hand);
+let max = getBestPossibleHand(hand);
+let maxother = getBestPossibleHand(communityHand);
+console.log("Best possible hand for other", maxother);
+console.log("Best current hand", maxCurrent);
+console.log("Best possible hand", max);
+let percent = getWinningPercentageForCurrentHand(hand, communityHand);
+console.log("Percent win rate", percent);
