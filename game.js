@@ -1,10 +1,11 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const DEBUG = false;
+const DEBUG = true;
 
 // Default values for miniumum raise amount and starting money
 const MINIMUM_BET = 5; // default minimum bet amount
+const MAXIMUM_BET = 100; //default maximum bet
 const START_MONEY = 1000; // default starting money
 const DEFAULT_ROBOT_PLAYERS = 2; // default no of robot players
 
@@ -35,6 +36,7 @@ const playerActions = {
   Call: "Call",
   Raise: "Raise",
   Fold: "Fold",
+  AllIn: "All In",
 };
 
 // Enumeration of the card suites
@@ -503,25 +505,22 @@ class Player {
     this.money = startingMoney;
     this.isCurrentPlayer = false;
     this.finishedBetting = false;
-    this.betAmount = 0;
+    this.betAmount = 0; // bet amount for this hand round
     this._speechBubbleText;
-    this.totalBet = 0;
+    this.totalBet = 0; // total amount bet so far
     this.isAllIn = false;
   }
 
   placeBet(amount) {
-    if (this.money < amount) {
-      return false;
-    } else {
-      this.money -= amount;
-      this.betAmount += amount;
-      this.totalBet += amount;
-    }
+    this.money -= amount;
+    this.betAmount += amount;
+    this.totalBet += amount;
   }
 
   clearBet(allBets = false) {
     this.betAmount = 0;
     this.finishedBetting = false;
+
     if (allBets) {
       this.totalBet = 0;
     }
@@ -535,8 +534,10 @@ class Player {
     this.hand.push(card);
   }
 
-  clearSpeechBubbleText() {
-    this._speechBubbleText = "";
+  clearSpeechBubbleText(endOfRound = false) {
+    if (endOfRound || !this.isAllIn) {
+      this._speechBubbleText = "";
+    }
   }
 
   async setSpeechBubbleText(newText) {
@@ -783,6 +784,7 @@ function addStatusMessage(text, position, textSize, delay) {
   );
 }
 
+// replaced this function
 function sortHandOLD(hand) {
   hand.sort((a, b) => {
     return cardValues[a.value] - cardValues[b.value];
@@ -1051,9 +1053,9 @@ function getHandValue(hand) {
   return x;
 }
 
-function clearAllSpeechBubbles() {
+function clearAllSpeechBubbles(endOfRound = false) {
   players.forEach((player) => {
-    player.clearSpeechBubbleText();
+    player.clearSpeechBubbleText(endOfRound);
   });
 }
 
@@ -1105,6 +1107,7 @@ function startNewRound() {
     players.forEach((player) => {
       player.hand = [];
       player.inPlay = true;
+      player.isAllIn = false;
     });
     setNextDealer();
     resetPlayerBets(true);
@@ -1171,6 +1174,7 @@ async function gameLoop() {
       case gameStage.Showdown:
         //work out the winner
         pauseGameLoop = true;
+        clearAllSpeechBubbles(true);
         logEvent("-Showdown-");
         doShowdown();
         currentStage = gameStage.GameOver;
@@ -1279,6 +1283,9 @@ function getHighestBet() {
 }
 
 function playerSmallBlind(player) {
+  if (smallBlind > player.money) {
+    playerAllIn(player);
+  }
   player.placeBet(smallBlind);
   pot.addAmount(smallBlind);
   player.setSpeechBubbleText("Small Blind");
@@ -1292,6 +1299,9 @@ function playerSmallBlind(player) {
 }
 
 function playerBigBlind(player) {
+  if (bigBlind >= player.money) {
+    playerAllIn(player);
+  }
   player.placeBet(bigBlind);
   pot.addAmount(bigBlind);
   player.setSpeechBubbleText("Big Blind");
@@ -1320,6 +1330,9 @@ function playerCall(player) {
   player.finishedBetting = true;
   let diff = getHighestBet() - player.betAmount;
   if (diff > 0) {
+    if (diff >= player.money) {
+      playerAllIn(player);
+    }
     if (DEBUG) console.log(player.playerName + " Call");
     player.placeBet(diff);
     pot.addAmount(diff);
@@ -1351,15 +1364,38 @@ function playerCheck(player) {
   logEvent(player.playerName + " Check ");
 }
 
-function playerRaise(player, raiseAmount) {
-  resetFinishedBetting();
+function playerAllIn(player) {
   player.finishedBetting = true;
+  if (DEBUG) console.log(player.playerName + " All In");
+
+  player.setSpeechBubbleText("All In");
+  player.isAllIn = true;
+  player.placeBet(player.money);
+  addStatusMessage(
+    "All In",
+    avatarCenterLocations[player.playerName],
+    50,
+    4000
+  );
+  logEvent(player.playerName + " All In ");
+}
+
+function playerRaise(player, raiseAmount) {
   let diff = getHighestBet() - player.betAmount;
   let betTotal = diff + raiseAmount;
+
+  if (betTotal >= player.money) {
+    playerAllIn(player);
+  }
+
+  resetFinishedBetting();
+  player.finishedBetting = true;
+
   if (DEBUG)
     console.log(
       player.playerName + " Raise $" + raiseAmount + " ($" + betTotal + ")"
     );
+  console.log(betTotal);
   player.placeBet(betTotal);
   pot.addAmount(betTotal);
   // add a speech bubble unless it is the human player
@@ -1382,6 +1418,10 @@ async function doBetting(nextStage) {
     const playerNo = setNextPlayer(); // get the next player
     let player = players[playerNo];
 
+    if (player.isAllIn) {
+      player.finishedBetting = true;
+      continue;
+    }
     const highestBet = getHighestBet();
     const checkIsPossible = highestBet === 0;
 
@@ -1403,6 +1443,9 @@ async function doBetting(nextStage) {
               break;
             case playerActions.Raise:
               playerRaise(player, result.amount);
+              break;
+            case playerActions.AllIn:
+              playerAllIn(player);
               break;
           }
         }
@@ -1614,21 +1657,29 @@ function getWinningPercentageForCurrentHand(hand, community) {
 async function GetUserBettingDecision(player, highestBet, checkIsPossible) {
   // need to configure the modal with values that are applicable
   let buttonsArray = [];
+  let showSlider = false;
   buttonsArray.push(buttonFold);
   if (checkIsPossible) {
     buttonsArray.push(buttonCheck);
   } else if (player.money >= highestBet) {
     buttonsArray.push(buttonCall);
   }
-  if (player.money > highestBet + MINIMUM_BET) {
+  if (player.money > highestBet + minimumBet) {
+    showSlider = true;
     buttonsArray.push(buttonRaise);
   }
+  if (player.money > 0 && player.money < highestBet) {
+    buttonsArray.push(buttonAllIn);
+  }
   let callAmount = highestBet - player.betAmount;
+  let minimumRaiseAmount = highestBet + minimumBet;
+  let maximumRaiseAmount = player.money - callAmount;
   showUserDialog(
     callAmount,
-    highestBet + MINIMUM_BET,
-    player.money,
-    buttonsArray
+    minimumRaiseAmount,
+    maximumRaiseAmount,
+    buttonsArray,
+    showSlider
   );
   let listener;
   const promise = new Promise((resolve) => {
@@ -1641,20 +1692,37 @@ async function GetUserBettingDecision(player, highestBet, checkIsPossible) {
   // remove the listener
   document.removeEventListener("userInputEvent", listener);
   hideUserDialog();
+  console.log("User bet result", result);
   return result;
 }
 
-function showUserDialog(callAmount, minSliderValue, maxSliderValue, buttons) {
-  sliderBet.min = minSliderValue;
-  sliderBet.max = maxSliderValue;
-  sliderBet.value = minSliderValue;
+function showUserDialog(
+  callAmount,
+  minimumRaise,
+  maximumRaise,
+  buttons,
+  showSlider = true
+) {
+  sliderBet.min = minimumRaise;
+  sliderBet.max = Math.min(maximumRaise, maximumBet);
+  sliderBet.value = minimumRaise;
   inputSliderValue.value = sliderBet.value;
-  const allButtons = [buttonFold, buttonCall, buttonRaise, buttonCheck];
+  const allButtons = [
+    buttonFold,
+    buttonCall,
+    buttonRaise,
+    buttonCheck,
+    buttonAllIn,
+  ];
   buttonCall.innerText = "Call ($" + callAmount + ")";
   // hide all the buttons first
   allButtons.forEach((button) => (button.style.display = "none"));
   // now show the applicable ones
   buttons.forEach((button) => (button.style.display = "inline"));
+  let sliderDisplay = "inline";
+  if (!showSlider) sliderDisplay = "none";
+  inputSliderValue.style.display = sliderDisplay;
+  sliderBet.style.display = sliderDisplay;
   modalPlayerInput.show();
 }
 
@@ -1780,14 +1848,15 @@ function doShowdown() {
     logEvent(winner.player.playerName + "-" + winner.score.description);
   });
   winnerText =
+    winnerText +
     "<strong><span style='color: #ff0000;'> POT $" +
     potAmount +
-    "</span></strong><br>" +
-    winnerText;
+    "</span></strong>";
   showRoundWinnerDialog(winnerText);
 }
 
 function resetPlayerBets(allBets = false) {
+  console.log("Resetting player bets");
   players.forEach((player) => {
     player.clearBet(allBets);
   });
@@ -1847,6 +1916,14 @@ function onButtonCheck() {
   new Audio(SOUND_BUTTONCLICK).play();
   userEvent.data = {
     action: playerActions.Check,
+  };
+  document.dispatchEvent(userEvent);
+}
+function onButtonAllIn() {
+  if (DEBUG) console.log("All in");
+  new Audio(SOUND_BUTTONCLICK).play();
+  userEvent.data = {
+    action: playerActions.AllIn,
   };
   document.dispatchEvent(userEvent);
 }
@@ -1936,6 +2013,7 @@ function loadSettings() {
   inputMinimumBet.value = minimumBet;
   bigBlind = minimumBet;
   smallBlind = Math.floor(bigBlind / 2);
+  maximumBet = (startingMoney * 50) / 100; //set maximum bet to 50% of starting money
 }
 
 function saveSettings() {
@@ -1958,6 +2036,7 @@ let gameObjectController;
 let pauseGameLoop;
 let pot;
 let minimumBet;
+let maximumBet;
 let startingMoney;
 let bigBlind;
 let smallBlind;
@@ -1993,7 +2072,9 @@ const buttonFold = document.getElementById("fold");
 const buttonCall = document.getElementById("call");
 const buttonRaise = document.getElementById("raise");
 const buttonCheck = document.getElementById("check");
+const buttonAllIn = document.getElementById("allin");
 const inputPlayerCount = document.getElementById("playerCount");
+const buttonStartAgain = document.getElementById("noMoreCashButton");
 const audio = document.getElementById("audio");
 
 //
@@ -2001,7 +2082,6 @@ const audio = document.getElementById("audio");
 //
 
 checkMusicEnabled.addEventListener("change", onMusicCheckChange);
-buttonNewGame.addEventListener("click", onNewGame);
 // add even listener for the bet slider
 sliderBet.addEventListener("input", function () {
   inputSliderValue.value = sliderBet.value; // Update the value of the text input
@@ -2014,12 +2094,15 @@ buttonCall.addEventListener("click", onButtonCall);
 buttonRaise.addEventListener("click", onButtonRaise);
 // check button event listener
 buttonCheck.addEventListener("click", onButtonCheck);
+buttonAllIn.addEventListener("click", onButtonAllIn);
 // Add the audio event listener for when song has finished
 audio.addEventListener("ended", playAudio);
 inputPlayerCount.addEventListener("change", onInputPlayerCountChange);
 inputStartMoney.addEventListener("change", onInputStartMoneyChange);
 inputMinimumBet.addEventListener("change", onInputMinimumBetChange);
 buttonRoundOk.addEventListener("click", onButtonRoundOk);
+buttonStartAgain.addEventListener("click", onNewGame);
+buttonNewGame.addEventListener("click", onNewGame);
 
 // wait for everything to load, then enable the start button
 window.addEventListener(

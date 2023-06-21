@@ -31,6 +31,19 @@ I wanted to have an animation going around the board lines while playing. Animat
 
 During testing I discovered the code to identify a straight was not working if an Ace was to be considered low value, eg 1,2,3,4,5 as a straight. had to modify the sort routine to include a flag for if the ace was considered high or low, then modify the straight routine to re-sort the hand if aces were low
 
+There was an issue with raise of full amount (or close to full amount) not working. This was due to working out the raise amount (ie call amount + amount to raise) twice, so the end raise amount was more than the players money
+
+
+
+Game Assumptions:
+Most texas holdem rules apply except:
+Big blind is considered the first bet to call, the small blind player will need to match it too in the pre-flop betting round
+Even 2 player games, the small blind and big blind are rotated through the players as per games with more than 2 players
+Raise can be any amount above the minimum bet amount (not double the last bet etc) and under the maximum bet
+No secondary pot is created when a player goes all-in. The player could win the entire pot.
+All in will occur if big blind or small blind cannot be made 
+
+
 Royalty Free Music: Bensound.com/royalty-free-music
 License code: DYC72OIBADXFJSRT
 Music: bensound.com
