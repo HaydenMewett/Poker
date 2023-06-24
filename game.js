@@ -1,7 +1,11 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const DEBUG = true;
+const DEBUG = false;
+const LETMEWIN = false;
+
+// I really dont know why you wouldnt want this, but....
+const ENABLE_SPINNER = true;
 
 // Default values for miniumum raise amount and starting money
 const MINIMUM_BET = 5; // default minimum bet amount
@@ -227,6 +231,7 @@ class GameObject {
   update(param) {}
 }
 
+// @class TextGameObject
 // Text Game Object - inherits from gameobject
 // Used for drawing some text on the screen which fades and moves up over time
 class TextGameObject extends GameObject {
@@ -282,7 +287,7 @@ class TextGameObject extends GameObject {
 //
 
 //
-// POT
+// @class Pot represents the game pot
 //
 class Pot {
   constructor(amount = 0, position = potLocation) {
@@ -356,16 +361,22 @@ class Pot {
     this.startAmount = this.amount; // set the initial start amount (which is the amount prior to adding), this will not change during the animation
     this.drawAmount = this.amount; // set the draw amount, this will change through the animation
     this.amount += amount; // set the actual pot amount.
+    if (disableAnimations) {
+      this.drawAmount = this.amount;
+    }
   }
 
   // removes all money from the pot and returns the total pot amount.
   payOut() {
-    this.startTime = Date.now();
-    this.startAmount = this.amount;
-    this.drawAmount = this.amount;
-    const payout = this.amount;
-    this.amount = 0;
-    return payout;
+    this.startTime = Date.now(); // time when the payout starts
+    this.startAmount = this.amount; // the start amount
+    this.drawAmount = this.amount; // the current drawn amount
+    const payout = this.amount; // the amount to payout
+    this.amount = 0; // the end amount
+    if (disableAnimations) {
+      this.drawAmount = this.amount;
+    }
+    return payout; // returns the payout amount
   }
 }
 
@@ -381,24 +392,26 @@ class Card {
     portrait = true,
     faceUp = false
   ) {
-    this.suite = suite;
-    this.value = value;
-    this.cardSheet = cardSheet;
-    this.position = position;
-    this.portrait = portrait;
-    this.faceUp = faceUp;
+    this.suite = suite; // the card suite
+    this.value = value; // the card value
+    this.cardSheet = cardSheet; // the card image sheet
+    this.position = position; // position of the card
+    this.portrait = portrait; // if the card is portrait or landscape (for player2 and 4)
+    this.faceUp = faceUp; // whether the card is face up or not
   }
 
+  // draws the card
+  // Parameters: rotated
   draw({ rotated, inplay }) {
-    let showCardFaceUp = this.faceUp;
+    let showCardFaceUp = this.faceUp; // holds the face up value
     if (checkShowCardsOverride.checked) {
-      showCardFaceUp = true;
+      showCardFaceUp = true; // override the face up value
     }
-    let cardWidth = this.cardSheet.width / cardSheetDimensions.width;
-    let cardHeight = this.cardSheet.height / cardSheetDimensions.height;
-    let cardvalue = this.getCardValue(false);
-    let positionX = this.position.x;
-    let positionY = this.position.y;
+    let cardWidth = this.cardSheet.width / cardSheetDimensions.width; // get the width of a card
+    let cardHeight = this.cardSheet.height / cardSheetDimensions.height; // get the height of the card
+    let cardvalue = this.getCardValue(false); // the cardvalue for this card
+    let positionX = this.position.x; // the x position
+    let positionY = this.position.y; // the y position
     // save the current context
     ctx.save();
 
@@ -435,7 +448,7 @@ class Card {
   // return the card value as an int, determines if aces should be high value or low
   getCardValue(acesHigh = true) {
     let cvalue = cardValues[this.value];
-    if (!acesHigh && this.value === "Ace") {
+    if (!acesHigh && cvalue === 14) {
       cvalue = 1;
     }
     return cvalue;
@@ -507,11 +520,12 @@ class Player {
     this.finishedBetting = false;
     this.betAmount = 0; // bet amount for this hand round
     this._speechBubbleText;
-    this.totalBet = 0; // total amount bet so far
+    this.totalBet = 0; // total amount bet so far this game
     this.isAllIn = false;
+    this.lastAction = "";
   }
 
-  placeBet(amount) {
+  _placeBet(amount) {
     this.money -= amount;
     this.betAmount += amount;
     this.totalBet += amount;
@@ -520,7 +534,7 @@ class Player {
   clearBet(allBets = false) {
     this.betAmount = 0;
     this.finishedBetting = false;
-
+    this.lastAction = "";
     if (allBets) {
       this.totalBet = 0;
     }
@@ -551,6 +565,127 @@ class Player {
     } else {
       this._speechBubbleText = newText;
     }
+  }
+
+  call(pot) {
+    this.finishedBetting = true;
+    let diff = getMinimumBet(this);
+    if (diff > 0) {
+      if (diff >= this.money) {
+        this.AllIn();
+        return;
+      }
+      if (DEBUG) console.log(this.playerName + " Call");
+      pot.addAmount(diff);
+      this._placeBet(diff);
+      // add a speech bubble unless it is the human player
+      if (this.playerName !== "Player1") {
+        this.setSpeechBubbleText("Call");
+      }
+      addStatusMessage(
+        "Call",
+        avatarCenterLocations[this.playerName],
+        50,
+        4000
+      );
+      logEvent(this.playerName + " Call $" + diff);
+    } else {
+      this.check();
+    }
+    this.lastAction = playerActions.Call;
+  }
+
+  check() {
+    // do nothing
+    this.finishedBetting = true;
+    if (DEBUG) console.log(this.playerName + " Check");
+    // add a speech bubble unless it is the human player
+    if (this.playerName !== "Player1") {
+      this.setSpeechBubbleText("Check");
+    }
+    addStatusMessage("Check", avatarCenterLocations[this.playerName], 50, 4000);
+    logEvent(this.playerName + " Check ");
+    this.lastAction = playerActions.Check;
+  }
+
+  raise(raiseAmount, pot) {
+    let diff = getMinimumBet(this);
+    let betTotal = diff + raiseAmount;
+
+    if (betTotal >= this.money) {
+      this.allIn();
+      return;
+    }
+
+    resetFinishedBetting();
+    this.finishedBetting = true;
+
+    if (DEBUG)
+      console.log(
+        this.playerName + " Raise $" + raiseAmount + " ($" + betTotal + ")"
+      );
+    pot.addAmount(betTotal);
+    this._placeBet(betTotal);
+
+    // add a speech bubble unless it is the human player
+    if (this.playerName !== "Player1") {
+      this.setSpeechBubbleText("Raise $" + raiseAmount);
+    }
+    addStatusMessage("Raise", avatarCenterLocations[this.playerName], 50, 4000);
+    logEvent(
+      this.playerName + " Raise $" + raiseAmount + " ($" + betTotal + ")"
+    );
+    this.lastAction = playerActions.Raise;
+  }
+
+  allIn(pot) {
+    this.finishedBetting = true;
+    if (DEBUG) console.log(this.playerName + " All In");
+
+    this.setSpeechBubbleText("All In");
+    this.isAllIn = true;
+    pot.addAmount(this.money);
+    this._placeBet(this.money);
+    addStatusMessage(
+      "All In",
+      avatarCenterLocations[this.playerName],
+      50,
+      4000
+    );
+    logEvent(this.playerName + " All In ");
+    this.lastAction = playerActions.AllIn;
+  }
+
+  fold() {
+    this.inPlay = false;
+    if (DEBUG) console.log(this.playerName + " Fold ");
+    // add a speech bubble unless it is the human player
+    if (this.playerName !== "Player1") {
+      this.setSpeechBubbleText("Fold");
+    }
+    new Audio(SOUND_FOLD).play();
+    addStatusMessage("Fold", avatarCenterLocations[this.playerName], 50, 4000);
+    logEvent(this.playerName + " Fold");
+    this.lastAction = playerActions.Fold;
+  }
+
+  async blind(blindType, amount, pot) {
+    if (amount >= this.money) {
+      this.allIn();
+      await delay(500);
+    } else {
+      pot.addAmount(amount);
+      this._placeBet(amount);
+
+      this.setSpeechBubbleText(blindType);
+    }
+    addStatusMessage(
+      blindType,
+      avatarCenterLocations[this.playerName],
+      50,
+      4000
+    );
+    logEvent(this.playerName + " " + blindType + "  $" + amount);
   }
 
   draw() {
@@ -743,8 +878,8 @@ function setNextDealer() {
     new TextGameObject(
       ctx,
       {
-        x: avatarCenterLocations["Player" + (playerNo + 1)].x,
-        y: avatarCenterLocations["Player" + (playerNo + 1)].y,
+        x: avatarCenterLocations[players[playerNo].playerName].x,
+        y: avatarCenterLocations[players[playerNo].playerName].y,
       },
       "Set Dealer",
       50,
@@ -782,13 +917,6 @@ function addStatusMessage(text, position, textSize, delay) {
       delay
     )
   );
-}
-
-// replaced this function
-function sortHandOLD(hand) {
-  hand.sort((a, b) => {
-    return cardValues[a.value] - cardValues[b.value];
-  });
 }
 
 function sortHand(hand, acesHigh = true) {
@@ -1097,33 +1225,89 @@ function startGame(numberOfPlayers) {
 function startNewRound() {
   enableAnimationFrame = false;
   pauseGameLoop = true;
-  let player1 = players.find((a) => a.playerName === "Player1");
-  if (player1 && player1.money < minimumBet) {
+
+  let brokePlayers = [];
+  players.forEach((player) => {
+    if (player.money === 0) brokePlayers.push(player);
+  });
+
+  if (brokePlayers.find((a) => a.playerName === "Player1")) {
     gotNoMoneyLeft();
-  } else {
-    pot = new Pot();
-    communityHand = new Player("Community");
-    currentStage = gameStage.NewHand;
-    players.forEach((player) => {
-      player.hand = [];
-      player.inPlay = true;
-      player.isAllIn = false;
-    });
-    setNextDealer();
-    resetPlayerBets(true);
-    enableAnimationFrame = true;
-    pauseGameLoop = false;
-    gameLoop();
+    return;
   }
+
+  pot = new Pot();
+  communityHand = new Player("Community");
+  currentStage = gameStage.NewHand;
+  players.forEach((player) => {
+    player.hand = [];
+    player.inPlay = true;
+    player.isAllIn = false;
+  });
+
+  for (let i = 0; i < brokePlayers.length; i++) {
+    let index = players.findIndex(
+      (a) => a.playerName === brokePlayers[i].playerName
+    );
+    players.splice(index, 1);
+  }
+
+  if (!isMoreThanOnePlayerLeft()) {
+    showGameWinnerDialog(players[0]);
+    return;
+  }
+
+  setNextDealer();
+  resetPlayerBets(true);
+  enableAnimationFrame = true;
+  pauseGameLoop = false;
+
+  startMonitorTime = Date.now();
+  lastMonitorTime = Date.now();
+  gameLoop();
 }
 
+let lastMonitorTime = 0;
+let startMonitorTime = 0;
+let framesSkipped = 0;
+// let lastMonitorTime = 0;
 //
 // function: gameLoop
 // The main game loop
 //
-
 async function gameLoop() {
+  if (!disableAnimations && startMonitorTime !== 0) {
+    let now = Date.now();
+    let delta = now - lastMonitorTime;
+    lastMonitorTime = now;
+
+    if (delta >= 16.7) {
+      framesSkipped += Math.floor(delta / 16.7);
+    }
+
+    if (now - startMonitorTime >= 20000) {
+      console.log("Avg frames skipped:", framesSkipped / 20);
+      startMonitorTime = 0;
+      if (framesSkipped / 20 > 40) {
+        disableAnimations = true;
+        console.log("Automatically disabling animations");
+      }
+    }
+  }
   // draw the board
+  // const now = Date.now();
+  // const elapsed = now - lastMonitorTime;
+  // lastMonitorTime = now;
+  // if (elapsed > 16) {
+  //   const skipped = Math.floor(elapsed / 16);
+  //   skippedFrames += skipped;
+  // }
+  // if (now - startMonitorTime >= 10000) {
+  //   console.log(skippedFrames / 10);
+  //   startMonitorTime = now;
+  //   skippedFrames = 0;
+  // }
+
   renderScreen();
   if (!pauseGameLoop) {
     // check what the current game stage is
@@ -1189,8 +1373,8 @@ async function gameLoop() {
   }
 }
 
+// draw the background board image
 function drawBoard() {
-  // draw the background board image
   try {
     ctx.drawImage(
       boardImage,
@@ -1204,8 +1388,8 @@ function drawBoard() {
   }
 }
 
+//draw the path rotator
 function drawPathRotator() {
-  //draw the path rotator
   currentPos1 = (currentPos1 + 10) % svgLength;
   let point = svgOverlay.getPointAtLength(currentPos1);
   svgCircle1.setAttribute("cx", point.x);
@@ -1218,11 +1402,10 @@ function renderScreen() {
     gameObjectController.update();
     pot.update();
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    //ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     drawBoard();
-
-    drawPathRotator();
+    if (ENABLE_SPINNER && !disableAnimations) drawPathRotator();
 
     pot.draw();
 
@@ -1232,10 +1415,14 @@ function renderScreen() {
     });
 
     // draw the community hand
-    communityHand.drawCards();
+    if (communityHand.hand.length > 0) {
+      communityHand.drawCards();
+    }
 
     //draw the game objects
-    gameObjectController.draw();
+    if (!disableAnimations) {
+      gameObjectController.draw();
+    }
   } catch (error) {
     if (DEBUG) console.log(error);
   }
@@ -1250,29 +1437,36 @@ function resetFinishedBetting() {
   if (DEBUG) console.log("Resetting betting flags");
 }
 
+// Check if it is the end of the round
+// this means that all active players have finished betting OR there is only 1 active player left
 function isEndRound() {
-  // check for only 1 player left and everyone finished betting
-  let activeCount = 0;
-  let finishedBettingCount = 0;
+  let activeCount = 0; // how many active players
+  let finishedBettingCount = 0; // how many finished betting players
   for (let i = 0; i < players.length; i++) {
     if (players[i].inPlay) {
-      activeCount++;
+      activeCount++; // increase the active count for those that are still inplay
       if (players[i].finishedBetting) {
-        finishedBettingCount++;
+        finishedBettingCount++; // increase the finished betting count for those that have finished betting
       }
     }
   }
 
+  // check if active players is less than 2 (ie 1 or 0) OR if everyone active has finished betting
   if (activeCount < 2 || activeCount === finishedBettingCount) {
     if (DEBUG) console.log("Round finished");
+    // if so, then the round is finished, return true
     return true;
   }
   if (DEBUG) console.log("Round not finished");
+  // if not the round is still going
   return false;
 }
 
+// get the current highest bet for this round
 function getHighestBet() {
   let highest = -1;
+  // loop through all of the players and compare their bet amount to the current highest
+  // if it is higher, then set that as the new highest bet
   for (let i = 0; i < players.length; i++) {
     if (players[i].betAmount > highest) {
       highest = players[i].betAmount;
@@ -1282,170 +1476,54 @@ function getHighestBet() {
   return highest;
 }
 
-function playerSmallBlind(player) {
-  if (smallBlind > player.money) {
-    playerAllIn(player);
-  }
-  player.placeBet(smallBlind);
-  pot.addAmount(smallBlind);
-  player.setSpeechBubbleText("Small Blind");
-  addStatusMessage(
-    "Small Blind",
-    avatarCenterLocations[player.playerName],
-    50,
-    4000
-  );
-  logEvent(player.playerName + " Small Blind $" + smallBlind);
-}
-
-function playerBigBlind(player) {
-  if (bigBlind >= player.money) {
-    playerAllIn(player);
-  }
-  player.placeBet(bigBlind);
-  pot.addAmount(bigBlind);
-  player.setSpeechBubbleText("Big Blind");
-  addStatusMessage(
-    "Big Blind",
-    avatarCenterLocations[player.playerName],
-    50,
-    4000
-  );
-  logEvent(player.playerName + " Big Blind $" + bigBlind);
-}
-
-function playerFold(player) {
-  player.inPlay = false;
-  if (DEBUG) console.log(player.playerName + " Fold ");
-  // add a speech bubble unless it is the human player
-  if (player.playerName !== "Player1") {
-    player.setSpeechBubbleText("Fold");
-  }
-  new Audio(SOUND_FOLD).play();
-  addStatusMessage("Fold", avatarCenterLocations[player.playerName], 50, 4000);
-  logEvent(player.playerName + " Fold");
-}
-
-function playerCall(player) {
-  player.finishedBetting = true;
-  let diff = getHighestBet() - player.betAmount;
-  if (diff > 0) {
-    if (diff >= player.money) {
-      playerAllIn(player);
-    }
-    if (DEBUG) console.log(player.playerName + " Call");
-    player.placeBet(diff);
-    pot.addAmount(diff);
-    // add a speech bubble unless it is the human player
-    if (player.playerName !== "Player1") {
-      player.setSpeechBubbleText("Call");
-    }
-    addStatusMessage(
-      "Call",
-      avatarCenterLocations[player.playerName],
-      50,
-      4000
-    );
-    logEvent(player.playerName + " Call $" + diff);
-  } else {
-    playerCheck(player);
-  }
-}
-
-function playerCheck(player) {
-  // do nothing
-  player.finishedBetting = true;
-  if (DEBUG) console.log(player.playerName + " Check");
-  // add a speech bubble unless it is the human player
-  if (player.playerName !== "Player1") {
-    player.setSpeechBubbleText("Check");
-  }
-  addStatusMessage("Check", avatarCenterLocations[player.playerName], 50, 4000);
-  logEvent(player.playerName + " Check ");
-}
-
-function playerAllIn(player) {
-  player.finishedBetting = true;
-  if (DEBUG) console.log(player.playerName + " All In");
-
-  player.setSpeechBubbleText("All In");
-  player.isAllIn = true;
-  player.placeBet(player.money);
-  addStatusMessage(
-    "All In",
-    avatarCenterLocations[player.playerName],
-    50,
-    4000
-  );
-  logEvent(player.playerName + " All In ");
-}
-
-function playerRaise(player, raiseAmount) {
-  let diff = getHighestBet() - player.betAmount;
-  let betTotal = diff + raiseAmount;
-
-  if (betTotal >= player.money) {
-    playerAllIn(player);
-  }
-
-  resetFinishedBetting();
-  player.finishedBetting = true;
-
-  if (DEBUG)
-    console.log(
-      player.playerName + " Raise $" + raiseAmount + " ($" + betTotal + ")"
-    );
-  console.log(betTotal);
-  player.placeBet(betTotal);
-  pot.addAmount(betTotal);
-  // add a speech bubble unless it is the human player
-  if (player.playerName !== "Player1") {
-    player.setSpeechBubbleText("Raise $" + raiseAmount);
-  }
-  addStatusMessage("Raise", avatarCenterLocations[player.playerName], 50, 4000);
-  logEvent(
-    player.playerName + " Raise $" + raiseAmount + " ($" + betTotal + ")"
-  );
+// Get the minimum bet the player has to make (call amount)
+function getMinimumBet(player) {
+  return getHighestBet() - player.betAmount;
 }
 
 async function doBetting(nextStage) {
   // pause the game loop
   pauseGameLoop = true;
-  //resetPlayerBets();
   clearAllSpeechBubbles();
 
+  // loop while the round of betting hasn't ended
   while (!isEndRound()) {
     const playerNo = setNextPlayer(); // get the next player
     let player = players[playerNo];
 
+    // if a player has gone allin then they automatically have finished betting for this round
     if (player.isAllIn) {
       player.finishedBetting = true;
       continue;
     }
+    // get the current highest bet
     const highestBet = getHighestBet();
+    // if the highest bet is 0, then a player can check
     const checkIsPossible = highestBet === 0;
 
+    // is it the human player?
     if (player.playerName === "Player1") {
       // human player
+      // wait for the getuserbettingdecision function to finish, THEN process the result
       await GetUserBettingDecision(player, highestBet, checkIsPossible).then(
         (result) => {
           switch (result.action) {
             case playerActions.Fold:
-              playerFold(player);
+              player.fold();
               break;
             case playerActions.Check:
               if (checkIsPossible) {
-                playerCheck(player);
-              } else playerCall(player);
+                player.check();
+              } else player.call();
               break;
             case playerActions.Call:
-              playerCall(player);
+              player.call(pot);
               break;
             case playerActions.Raise:
-              playerRaise(player, result.amount);
+              player.raise(result.amount, pot);
               break;
             case playerActions.AllIn:
-              playerAllIn(player);
+              player.allIn(pot);
               break;
           }
         }
@@ -1454,114 +1532,171 @@ async function doBetting(nextStage) {
       // Do AI betting
       doAIBetting(checkIsPossible, player);
     }
-    await delay(500);
+    await delay(500); // just a little pause
   }
   // clear the betting flag
   resetPlayerBets();
+  // if there is only 1 player left, switch straight over to the showdown
   if (!isMoreThanOnePlayerLeft()) currentStage = gameStage.Showdown;
+  // otherwise set to the next stage
   else currentStage = nextStage;
 
+  // restart the game loop
   pauseGameLoop = false;
 }
 
 function doAIBetting(checkIsPossible, player) {
+  // lets make it as easy as possible to win if LETMEWIN flag is set (other player may win on all-in though)
+  if (currentStage !== gameStage.PreFlop && LETMEWIN) {
+    player.fold();
+    return;
+  }
+  let winPercentage = 0;
+
+  let minimumRequiredBet = getMinimumBet(player);
+  let currentBet = player.betAmount;
   let handScore = evaluateHand(player);
-  let move = Math.floor(Math.random() * 3);
-  switch (move) {
-    case 0:
-      if (checkIsPossible) {
-        playerCheck(player);
-      } else {
-        playerCall(player);
-      }
-      break;
-    case 1:
-      playerRaise(player, 10);
-      break;
-    case 2:
+  if (DEBUG) console.log(handScore);
+
+  if (currentStage === gameStage.River) {
+    winPercentage = getWinningPercentageForCurrentHand(
+      player.hand,
+      communityHand.hand
+    );
+    console.log("Win percentage", winPercentage);
+  }
+
+  // add a bit of randomness
+  // -------------------
+  let luckyRoll = Math.floor(Math.random() * 100);
+  if (luckyRoll < 20) {
+    console.log("Lucky Roll Action");
+    // fold as long as a few conditions aren't met
+    if (luckyRoll < 5) {
       if (
-        currentStage === gameStage.PreFlop ||
-        currentStage === gameStage.Flop
+        currentStage !== gameStage.PreFlop &&
+        handScore < 6 &&
+        winPercentage < 90
       ) {
-        playerCall(player);
-      } else {
-        // playerFold(player);
-        playerCall(player); // no folding
+        player.fold();
       }
-      break;
+    } else if (luckyRoll < 15) {
+      // do a random call
+      player.call(pot);
+    } else {
+      // otherwise do a random raise
+      player.raise(minimumBet, pot);
+    }
+    return;
+  }
+  // -------------------
+
+  // do weightings depending on the winpercentage. this will only happen on last betting round
+  if (winPercentage === 0) winChanceWeighting = 0;
+  else if (winPercentage < 10) winChanceWeighting = -2;
+  else if (winPercentage < 20) winChanceWeighting = -1;
+  else if (winPercentage < 60) winChanceWeighting = 0;
+  else if (winPercentage < 80) winChanceWeighting = 1;
+  else if (winPercentage < 90) winChanceWeighting = 2;
+  else winChanceWeighting = 3;
+  handScore += winChanceWeighting;
+
+  if (handScore < 2) {
+    // fold, or check if possible, at least most of the time
+    if (checkIsPossible) {
+      if (Math.random() < 0.8) {
+        player.check();
+      } else {
+        player.call();
+      }
+      return;
+    } else {
+      player.fold();
+      return;
+    }
+  } else if (handScore < 3) {
+    // most probably best to call
+    if (checkIsPossible) {
+      if (Math.random() < 0.5) {
+        player.call(pot);
+      } else {
+        player.check();
+      }
+      return;
+    } else {
+      if (
+        player.lastAction === playerActions.Raise ||
+        Math.random() < 0.8 ||
+        player.money < minimumRequiredBet
+      ) {
+        player.call(pot);
+      } else player.raise(minimumBet, pot);
+      return;
+    }
+  } else if (handScore < 8) {
+    // This is a good hand
+    if (Math.random() < 0.5 || player.money < minimumRequiredBet) {
+      player.call(pot);
+    } else {
+      player.raise(minimumBet, pot);
+    }
+    return;
+  } else {
+    // this is a really good hand
+    player.raise(minimumBet, pot);
   }
 }
 
-// determine whether to call or raise, depending on the handstrength, the current bet
-// and the game stage
-function determineCallorRaise(handStrength, player) {
-  const currentBet = player.betAmount;
-  switch (gameStage) {
-    case gameStage.PreFlop:
-      break;
-    case gameStage.Flop:
-      break;
-    case gameStage.Turn:
-      break;
-    case gameStage.River:
-      break;
-  }
-}
-
-// determine whether to fold or continue. this returns a value depending on the
-// game stage. the value needs to be higher if the bet is higher
-function calculateDecisionThreshold(player) {
-  const currentBet = player.betAmount;
-  switch (gameStage) {
-    case gameStage.PreFlop:
-      break;
-    case gameStage.Flop:
-      break;
-    case gameStage.Turn:
-      break;
-    case gameStage.River:
-      break;
-  }
-}
-
-// evaluate hand - routine to give a numeric score to the hand, taking into account
+// evaluate hand - routine to give a numeric score to the hand between 1 and 10, taking into account
 // the current game stage.
 function evaluateHand(player) {
-  const bestHandScore = getBestHandScore(player.hand);
-  if (DEBUG) console.log(bestHandScore);
-  let score = bestHandScore.score;
+  let fullHand = player.hand.concat(communityHand.hand);
+  const bestHandScore = getBestHandScore(fullHand);
+  if (DEBUG) console.log(player, bestHandScore);
+
+  let score = Number(bestHandScore.score);
 
   switch (currentStage) {
     case gameStage.PreFlop:
-      //increase the score for a high pair
       let pairScore = getOnePairScore(player.hand);
       if (
-        (score >= handValues.onePair + cardValues.Jack &&
-          score <= handValues.onePair + cardValues.Ace) ||
-        (pairScore >= handValues.onePair + cardValues.Jack &&
-          pairScore <= handValues.onePair + cardValues.Ace)
+        (score >= handValues.onePair + cardValues.Jack / 100 &&
+          score <= handValues.onePair + cardValues.Ace / 100) ||
+        (Number(pairScore.score) >=
+          handValues.onePair + cardValues.Jack / 100 &&
+          Number(pairScore.score) <= handValues.onePair + cardValues.Ace / 100)
       ) {
-        return 12;
+        return 10;
       }
-      if (Math.floor(score) == handValues.onePair) {
+      if (Math.floor(score) === handValues.onePair) {
         return 8;
       }
-      if (score == handValues.highCard + cardValues.Ace) {
+      if (score > 5) {
+        return score;
+      }
+      if (score === handValues.highCard + cardValues.Ace / 100) {
         return 5;
       }
       const rankdiff = Math.abs(player.hand[0] - player.hand[1]);
       if (rankdiff == 1 || rankdiff == 2) {
         return 4;
       }
+      if (score >= handValues.highCard + cardValues.Ten / 100) {
+        return 2;
+      }
       return score;
     case gameStage.Flop:
+      let bestPossibleFlopHand = getBestPossibleHand(fullHand);
+      // average the scores, but weighted to the existing hand not the best possible one
+      score = ((score * 2 + Number(bestPossibleFlopHand.score)) / 3).toFixed(2);
       return score;
     case gameStage.Turn:
-      return score;
-    case gameStage.River:
+      // average the scores, but weighted to the best possible hand, not the existing one
+      let bestPossibleTurnHand = getBestPossibleHand(fullHand);
+      score = ((score + Number(bestPossibleTurnHand.score) * 2) / 3).toFixed(2);
       return score;
   }
-  return -1;
+  return score;
 }
 
 function getRemainingCards(hand) {
@@ -1633,6 +1768,9 @@ function getBestPossibleHand(hand, maxCardsToChooseFrom = 7) {
   let max = false;
   combinations.forEach((combination) => {
     let handValue = getHandValue(combination);
+    if (!handValue) {
+      console.log(hand);
+    }
     if (!max || handValue.score > max.score) {
       max = handValue;
     }
@@ -1692,7 +1830,7 @@ async function GetUserBettingDecision(player, highestBet, checkIsPossible) {
   // remove the listener
   document.removeEventListener("userInputEvent", listener);
   hideUserDialog();
-  console.log("User bet result", result);
+  if (DEBUG) console.log("User bet result", result);
   return result;
 }
 
@@ -1741,6 +1879,11 @@ function hideRoundWinnerDialog() {
 }
 function showGameWinnerDialog(player) {
   new Audio(SOUND_LEVELCOMPLETE).play();
+  let text =
+    "<strong><span style='color: #ff0000;'> Total Money $" +
+    player.money +
+    "</span></strong>";
+  document.getElementById("gameWinnerLabel").innerHTML = text;
   gameWinnerDiv.classList.remove("d-none");
 }
 
@@ -1757,12 +1900,14 @@ async function doBlind() {
   );
   let smallBlindPlayerNo = setNextPlayer();
   let smallBlindPlayer = players[smallBlindPlayerNo];
-  playerSmallBlind(smallBlindPlayer);
+  //playerSmallBlind(smallBlindPlayer);
+  smallBlindPlayer.blind("Small Blind", smallBlind, pot);
   await delay(1000);
   // // big blind
   let bigBlindPlayerNo = setNextPlayer();
   let bigBlindPlayer = players[bigBlindPlayerNo];
-  playerBigBlind(bigBlindPlayer);
+  //playerBigBlind(bigBlindPlayer);
+  bigBlindPlayer.blind("Big Blind", bigBlind, pot);
   await delay(1000);
 }
 
@@ -1856,7 +2001,7 @@ function doShowdown() {
 }
 
 function resetPlayerBets(allBets = false) {
-  console.log("Resetting player bets");
+  if (DEBUG) console.log("Resetting player bets. Allbets:", allBets);
   players.forEach((player) => {
     player.clearBet(allBets);
   });
@@ -1994,7 +2139,20 @@ function onButtonRoundOk() {
   startNewRound();
 }
 
+function onDisableAnimations() {
+  if (checkDisableAnimations.checked) {
+    disableAnimations = true;
+  } else {
+    disableAnimations = false;
+  }
+  //localStorage.setItem("EnableAudio", checkMusicEnabled.checked);
+  saveSettings();
+}
+
 function loadSettings() {
+  disableAnimations = localStorage.getItem("DisableAnimations")
+    ? localStorage.getItem("DisableAnimations") === "true"
+    : true;
   enableAudio = localStorage.getItem("EnableAudio")
     ? localStorage.getItem("EnableAudio") === "true"
     : true;
@@ -2008,6 +2166,7 @@ function loadSettings() {
   }
 
   checkMusicEnabled.checked = enableAudio;
+  checkDisableAnimations.checked = disableAnimations;
   setAudioControls(enableAudio);
   inputStartMoney.value = startingMoney;
   inputMinimumBet.value = minimumBet;
@@ -2018,12 +2177,14 @@ function loadSettings() {
 
 function saveSettings() {
   enableAudio = checkMusicEnabled.checked;
+  disableAnimations = checkDisableAnimations.checked;
   startingMoney = Number(inputStartMoney.value);
   minimumBet = Number(inputMinimumBet.value);
 
   localStorage.setItem("EnableAudio", enableAudio);
   localStorage.setItem("StartingMoney", startingMoney);
   localStorage.setItem("MinimumBet", minimumBet);
+  localStorage.setItem("DisableAnimations", disableAnimations);
 }
 
 /////////////////////////////////////////////////////// START HERE ///////////////////////////////////////////////////////////
@@ -2046,6 +2207,7 @@ let smallBlind;
 let enableAudio;
 let raf;
 let enableAnimationFrame = false;
+let disableAnimations = false;
 
 // path rotator elements
 let svgOverlay = document.getElementsByClassName("cls-svg")[0];
@@ -2059,6 +2221,7 @@ const buttonNewGame = document.getElementById("newGameButton");
 const inputStartMoney = document.getElementById("inputStartingMoney");
 const inputMinimumBet = document.getElementById("inputMinimumBet");
 const checkShowCardsOverride = document.getElementById("alwaysShowCards");
+const checkDisableAnimations = document.getElementById("disableAnimations");
 const checkMusicEnabled = document.getElementById("musicEnabled");
 const buttonStart = document.getElementById("startButton");
 const logTextArea = document.getElementById("logTextArea");
@@ -2076,10 +2239,13 @@ const buttonAllIn = document.getElementById("allin");
 const inputPlayerCount = document.getElementById("playerCount");
 const buttonStartAgain = document.getElementById("noMoreCashButton");
 const audio = document.getElementById("audio");
-
+const spinnerOverlay = document.getElementById("svgOverlay");
+const buttongameWinner = document.getElementById("gameWinnerButton");
 //
 // ADD EVENT LISTENERS
 //
+
+checkDisableAnimations.addEventListener("change", onDisableAnimations);
 
 checkMusicEnabled.addEventListener("change", onMusicCheckChange);
 // add even listener for the bet slider
@@ -2103,6 +2269,9 @@ inputMinimumBet.addEventListener("change", onInputMinimumBetChange);
 buttonRoundOk.addEventListener("click", onButtonRoundOk);
 buttonStartAgain.addEventListener("click", onNewGame);
 buttonNewGame.addEventListener("click", onNewGame);
+buttongameWinner.addEventListener("click", onNewGame);
+
+spinnerOverlay.style.display = ENABLE_SPINNER ? "inline" : "none";
 
 // wait for everything to load, then enable the start button
 window.addEventListener(

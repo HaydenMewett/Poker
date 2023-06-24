@@ -33,7 +33,7 @@ During testing I discovered the code to identify a straight was not working if a
 
 There was an issue with raise of full amount (or close to full amount) not working. This was due to working out the raise amount (ie call amount + amount to raise) twice, so the end raise amount was more than the players money
 
-
+shifted all the outside functions for player betting into the player class to keep it neater. This does cause a slight issue
 
 Game Assumptions:
 Most texas holdem rules apply except:
@@ -42,6 +42,9 @@ Even 2 player games, the small blind and big blind are rotated through the playe
 Raise can be any amount above the minimum bet amount (not double the last bet etc) and under the maximum bet
 No secondary pot is created when a player goes all-in. The player could win the entire pot.
 All in will occur if big blind or small blind cannot be made 
+
+Game Steps:
+
 
 
 Royalty Free Music: Bensound.com/royalty-free-music

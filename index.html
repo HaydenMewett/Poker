@@ -114,17 +114,35 @@
                   />
                 </div>
               </div>
-              <div class="col">
-                <div class="form-check form-switch">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    role="switch"
-                    id="alwaysShowCards"
-                  />
-                  <label class="form-check-label" for="alwaysShowCards"
-                    >Show player cards</label
-                  >
+              <div class="row">
+                <div class="col">
+                  <div class="form-check form-switch">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      id="alwaysShowCards"
+                    />
+                    <label class="form-check-label" for="alwaysShowCards"
+                      >Show player cards</label
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col">
+                  <div class="form-check form-switch">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      id="disableAnimations"
+                    />
+                    <label class="form-check-label" for="disableAnimations"
+                      >Disable Animations</label
+                    >
+                  </div>
                 </div>
               </div>
             </div>
@@ -281,7 +299,7 @@
         <h1>Game Winner!</h1>
         <h2><label id="gameWinnerLabel">[Player]</label></h2>
         <hr />
-        <button id="gameOkButton" class="btn btn-primary">New Game</button>
+        <button id="gameWinnerButton" class="btn btn-primary">New Game</button>
       </div>
     </div>
 
@@ -289,7 +307,7 @@
     <!-- SVG overlay -->
     <!-- Used for the annoying rotating ball -->
     <svg
-      id="svgTest"
+      id="svgOverlay"
       data-name="Layer 1"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 2560 1440"
